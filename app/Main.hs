@@ -1,14 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Network.Wai (responseLBS, Application, rawPathInfo)
+import Network.Wai (responseLBS, Application, pathInfo)
 import Network.HTTP.Types (status200)
 import Network.Wai.Handler.Warp (run, Port)
 import System.Environment (getEnvironment)
-import Data.List (lookup)
+import Data.List (lookup, intercalate)
 import Data.Maybe
 
+import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as C
 
 main :: IO ()
 main = do
@@ -18,7 +20,7 @@ main = do
   run port helloApp
 
 helloApp :: Application
-helloApp req respond = respond $ responseLBS status200 [] (getPath req)
+helloApp req respond = respond $ responseLBS status200 [] (C.pack (urlFromPath req))
 
 getPort :: IO Port
 getPort = getEnvironment >>= return . port
@@ -28,4 +30,4 @@ getPort = getEnvironment >>= return . port
 defaultPort :: Port
 defaultPort = 3000
 
-getPath req = BL.fromStrict $ rawPathInfo req
+urlFromPath req = ("http://" :: String) ++ (intercalate "/" (map T.unpack (pathInfo req)))
