@@ -27,9 +27,12 @@ executable haskell-thumber-exe
                      , haskell-thumber
                      , wai
                      , warp
+                     , HTTP
                      , http-types
                      , bytestring
                      , text
+                     , blaze-builder
+                     , network-uri
   default-language:    Haskell2010
 
 test-suite haskell-thumber-test
