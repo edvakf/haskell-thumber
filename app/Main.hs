@@ -66,6 +66,7 @@ httpGet uri = simpleHTTP (defaultGETRequest_ uri)
 -- convert upstream response to Wai's response headers
 convHeaders :: HStream ty => Response ty -> ResponseHeaders
 convHeaders rsp =
-  let contentType = fromMaybe "application/octet-stream" (findHeader HdrContentType rsp) in
-  let contentLength = fromMaybe "0" (findHeader HdrContentLength rsp) in
   [("Content-Type", C.pack contentType), ("Content-Length", C.pack contentLength)]
+  where
+    contentType = fromMaybe "application/octet-stream" (findHeader HdrContentType rsp)
+    contentLength = fromMaybe "0" (findHeader HdrContentLength rsp)
