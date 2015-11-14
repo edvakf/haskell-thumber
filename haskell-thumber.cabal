@@ -28,6 +28,7 @@ executable haskell-thumber-exe
                      , wai
                      , warp
                      , http-types
+                     , bytestring
   default-language:    Haskell2010
 
 test-suite haskell-thumber-test
