@@ -15,11 +15,13 @@ import System.Environment (getEnvironment)
 import Data.List (lookup, intercalate)
 import Data.Maybe
 import Data.Either
+import Lib (getConfig, Config)
 
 import qualified Data.Text as T
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
 import qualified Blaze.ByteString.Builder.ByteString as BB
+import qualified Data.ByteString.Lazy.Char8 as LC
 
 main :: IO ()
 main = do
@@ -30,11 +32,11 @@ main = do
 
 thumberApp :: Application
 thumberApp req respond =
-  let url = urlFromPath req in
-  case parseURI url of
-    Nothing -> respond $ responseLBS status400 [] "Invalid URL"
-    Just uri -> do
-      (print $ "Requesting: " ++ url)
+  case parsePath req of
+    Left err -> respond $ responseLBS status400 [] $ LC.pack err
+    Right (config, uri) -> do
+      (print $ "Requesting: " ++ (show uri))
+      (print $ "Config: " ++ (show config))
       result <- httpGet uri
       case result of
         Left _ ->
@@ -56,8 +58,17 @@ getPort = getEnvironment >>= return . port
 defaultPort :: Port
 defaultPort = 3000
 
-urlFromPath :: Request -> String
-urlFromPath req = (++) "http://" $ intercalate "/" $ map T.unpack $ pathInfo req
+parsePath :: Request -> Either String (Config, URI)
+parsePath req =
+  if null pathList then Left "Invalid path"
+  else case getConfig (head pathList) of
+    Left err -> Left err
+    Right c -> case parseURI upstreamURL of
+      Nothing -> Left "Invalid path"
+      Just u -> Right (c, u)
+  where
+    pathList = map T.unpack $ pathInfo req
+    upstreamURL = (++) "http://" $ intercalate "/" $ tail pathList
 
 -- use defaultGETRequest_ instead of getRequest because of https://github.com/haskell/HTTP/issues/1
 httpGet :: HStream ty => URI -> IO (Result (Response ty))
