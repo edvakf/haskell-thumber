@@ -15,7 +15,7 @@ import System.Environment (getEnvironment)
 import Data.List (lookup, intercalate)
 import Data.Maybe
 import Data.Either
-import Lib (getConfig, Config)
+import Lib.Config (getConfig, Config)
 
 import qualified Data.Text as T
 import qualified Data.ByteString as B
