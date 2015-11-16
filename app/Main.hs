@@ -6,7 +6,7 @@ import Network.Stream (Result)
 import Network.HTTP (Response, simpleHTTP, getResponseBody, defaultGETRequest_, rspCode, rspReason)
 import Network.HTTP.Types (status200, status400)
 import Network.HTTP.Types.Status (Status, mkStatus)
-import Network.HTTP.Types.Header (ResponseHeaders)
+import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Headers (findHeader, HeaderName(HdrContentLength, HdrContentType))
 import Network.URI (URI, parseURI)
 import Network.Wai (Request, responseLBS, responseStream, StreamingBody, Application, pathInfo)
@@ -15,11 +15,13 @@ import System.Environment (getEnvironment)
 import Data.List (lookup, intercalate)
 import Data.Maybe
 import Data.Either
-import Lib.Config (getConfig, Config)
+import Lib.Config (getConfig, Config, getWidth, getHeight)
+import Lib.Image (convert)
 
 import qualified Data.Text as T
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString.Lazy as LB
 import qualified Blaze.ByteString.Builder.ByteString as BB
 import qualified Data.ByteString.Lazy.Char8 as LC
 
@@ -43,10 +45,11 @@ thumberApp req respond =
           respond $ responseLBS status400 [] "Upstream request failed"
         Right rsp ->
           case rspCode rsp of
-            (2, _, _) ->
-              respond $ responseStream status200 (convHeaders rsp) $ \write flush -> do
-                body <- getResponseBody result
-                write $ BB.fromByteString body
+            (2, _, _) -> do
+              body <- getResponseBody result
+              case convert (getWidth config, getHeight config) body of
+                Left err -> respond $ responseLBS status400 [] $ LC.pack err
+                Right converted -> respond $ responseLBS status200 [contentTypeHeader rsp, contentLengthHeader converted] converted
             otherwise ->
               respond $ responseLBS status400 [] "Upstream response is not 2XX"
 
@@ -74,10 +77,12 @@ parsePath req =
 httpGet :: HStream ty => URI -> IO (Result (Response ty))
 httpGet uri = simpleHTTP (defaultGETRequest_ uri)
 
--- convert upstream response to Wai's response headers
-convHeaders :: HStream ty => Response ty -> ResponseHeaders
-convHeaders rsp =
-  [("Content-Type", C.pack contentType), ("Content-Length", C.pack contentLength)]
+contentTypeHeader :: HStream ty => Response ty -> Header
+contentTypeHeader rsp =
+  ("Content-Type", C.pack contentType)
   where
     contentType = fromMaybe "application/octet-stream" (findHeader HdrContentType rsp)
-    contentLength = fromMaybe "0" (findHeader HdrContentLength rsp)
+
+contentLengthHeader :: LB.ByteString -> Header
+contentLengthHeader content =
+  ("Content-Length", C.pack $ show $ LB.length content)
